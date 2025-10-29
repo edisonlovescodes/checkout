@@ -73,6 +73,8 @@ export default async function CheckoutPage({
   const prefill = config.allowPrefill ? extractPrefill(searchParams) : {}
   const paymentIdParam = searchParams.payment_id
   const paymentId = Array.isArray(paymentIdParam) ? paymentIdParam[0] : paymentIdParam
+  const bumpIdParam = searchParams.bumpId
+  const bumpId = Array.isArray(bumpIdParam) ? bumpIdParam[0] : bumpIdParam
 
   return (
     <main className="min-h-screen">
@@ -82,6 +84,7 @@ export default async function CheckoutPage({
         prefill={prefill}
         paymentId={paymentId}
         webhookUrl={config.webhookUrl}
+        initialSelectedBumpId={bumpId}
       />
     </main>
   )

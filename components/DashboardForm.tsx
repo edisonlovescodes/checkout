@@ -486,19 +486,36 @@ export function DashboardForm({ companyId, initialConfig }: Props) {
           ) : null}
           <div className="space-y-4">
             {formState.bumps.map((bump, index) => (
-              <BumpEditor
-                key={bump.id ?? index}
-                index={index}
-                total={formState.bumps.length}
-                bump={bump}
-                errors={bumpErrors[index] ?? {}}
-                onChange={(updates) => handleBumpChange(index, updates)}
-                onRemove={() => handleRemoveBump(index)}
-                onMoveUp={() => handleMoveBump(index, 'up')}
-                onMoveDown={() => handleMoveBump(index, 'down')}
-                disableRemove={formState.bumps.length === 0}
-                onSelectDefault={() => handleSelectDefault(index)}
-              />
+              <div key={bump.id ?? index} className="space-y-2">
+                <BumpEditor
+                  index={index}
+                  total={formState.bumps.length}
+                  bump={bump}
+                  errors={bumpErrors[index] ?? {}}
+                  onChange={(updates) => handleBumpChange(index, updates)}
+                  onRemove={() => handleRemoveBump(index)}
+                  onMoveUp={() => handleMoveBump(index, 'up')}
+                  onMoveDown={() => handleMoveBump(index, 'down')}
+                  disableRemove={formState.bumps.length === 0}
+                  onSelectDefault={() => handleSelectDefault(index)}
+                />
+                {bump.id ? (
+                  <div className="flex justify-end">
+                    <a
+                      className="text-xs font-semibold text-sky-600 hover:text-sky-500"
+                      href={`/checkout/${companyId}?bumpId=${bump.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Preview this bump ↗
+                    </a>
+                  </div>
+                ) : (
+                  <div className="flex justify-end">
+                    <span className="text-xs text-slate-500">Save to enable a direct preview link</span>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>

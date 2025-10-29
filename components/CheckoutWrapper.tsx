@@ -11,6 +11,7 @@ interface CheckoutWrapperProps {
   prefill: WhopPrefillMap
   paymentId?: string
   webhookUrl?: string | null
+  initialSelectedBumpId?: string | null
 }
 
 const highlightStyles: Record<string, string> = {
@@ -42,11 +43,21 @@ export function CheckoutWrapper({
   prefill,
   paymentId,
   webhookUrl,
+  initialSelectedBumpId,
 }: CheckoutWrapperProps) {
   const [selectedBumpId, setSelectedBumpId] = useState<string | undefined>(() => {
-    const defaultBump = config.bumps.find((bump) => bump.defaultSelected)
-    return defaultBump?.id
+    if (initialSelectedBumpId && config.bumps.some((b) => b.id === initialSelectedBumpId)) {
+      return initialSelectedBumpId
+    }
+    const def = config.bumps.find((bump) => bump.defaultSelected)
+    return def?.id
   })
+
+  useEffect(() => {
+    if (initialSelectedBumpId && config.bumps.some((b) => b.id === initialSelectedBumpId)) {
+      setSelectedBumpId(initialSelectedBumpId)
+    }
+  }, [initialSelectedBumpId, config.bumps])
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [forwardingState, setForwardingState] = useState<'idle' | 'sending' | 'done'>('idle')
 
