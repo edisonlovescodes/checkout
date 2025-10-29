@@ -3,9 +3,11 @@ const nextConfig = {
   async headers() {
     const csp = [
       "default-src 'self'",
-      "script-src 'self' https://js.whop.com",
+      // Next.js requires inline runtime and eval in production unless you switch to nonce/hash strategy.
+      // Allow Whop loader, inline/eval for Next, and blob: for next/image and runtime chunks.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://js.whop.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data:",
+      "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https://api.whop.com",
       // Allow Whop to embed this app in an iframe from both apps.whop.com and its subdomains
