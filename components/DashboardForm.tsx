@@ -466,9 +466,14 @@ export function DashboardForm({ companyId, initialConfig }: Props) {
             <h3 className="text-lg font-semibold text-slate-900">Order bumps</h3>
             <button
               type="button"
-              onClick={handleAddBump}
-              disabled={formState.bumps.length >= 3}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/20 disabled:cursor-not-allowed disabled:bg-slate-400"
+              onClick={() => {
+                if (formState.bumps.length >= 3) {
+                  setMessage('You can add up to 3 bumps. Remove one to add another.')
+                  return
+                }
+                handleAddBump()
+              }}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/20"
             >
               Add bump
             </button>
