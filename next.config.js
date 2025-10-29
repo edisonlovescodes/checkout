@@ -8,8 +8,9 @@ const nextConfig = {
       "img-src 'self' data:",
       "font-src 'self' data:",
       "connect-src 'self' https://api.whop.com",
-      "frame-src https://*.whop.com 'self'",
-      "frame-ancestors https://*.whop.com 'self'",
+      // Allow Whop to embed this app in an iframe from both apps.whop.com and its subdomains
+      "frame-src https://*.whop.com https://*.apps.whop.com 'self'",
+      "frame-ancestors https://whop.com https://apps.whop.com https://*.whop.com https://*.apps.whop.com 'self'",
       "form-action 'self'",
       "base-uri 'self'",
     ].join('; ')
@@ -20,7 +21,6 @@ const nextConfig = {
         headers: [
           { key: 'Content-Security-Policy', value: csp },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'X-Frame-Options', value: 'ALLOW-FROM https://*.whop.com' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
