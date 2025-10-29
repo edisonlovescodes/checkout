@@ -527,12 +527,9 @@ export function DashboardForm({ companyId, initialConfig }: Props) {
                 type="url"
                 value={formState.redirectUrl}
                 onChange={(event) => handleFieldChange('redirectUrl', event.target.value)}
-                disabled={!formState.redirectEnabled}
                 className={clsx(
                   'w-full rounded-lg border px-3 py-2 text-sm outline-none transition',
-                  !formState.redirectEnabled
-                    ? 'cursor-not-allowed border-slate-100 bg-slate-100 text-slate-400'
-                    : fieldErrors.redirectUrl
+                  fieldErrors.redirectUrl
                     ? 'border-rose-400 focus:border-rose-500'
                     : 'border-slate-200 focus:border-slate-400'
                 )}
@@ -562,12 +559,9 @@ export function DashboardForm({ companyId, initialConfig }: Props) {
                 type="url"
                 value={formState.webhookUrl}
                 onChange={(event) => handleFieldChange('webhookUrl', event.target.value)}
-                disabled={!formState.webhookEnabled}
                 className={clsx(
                   'w-full rounded-lg border px-3 py-2 text-sm outline-none transition',
-                  !formState.webhookEnabled
-                    ? 'cursor-not-allowed border-slate-100 bg-slate-100 text-slate-400'
-                    : fieldErrors.webhookUrl
+                  fieldErrors.webhookUrl
                     ? 'border-rose-400 focus:border-rose-500'
                     : 'border-slate-200 focus:border-slate-400'
                 )}

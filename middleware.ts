@@ -16,23 +16,64 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  try {
-    const session = await verifyDashboardRequest(request, companyId)
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-whop-company-id', session.companyId)
-    requestHeaders.set('x-whop-user-id', session.userId)
-    requestHeaders.set('x-whop-access-level', session.accessLevel)
+  // For dashboard page requests: verify via Whop token and set a short-lived cookie to reuse
+  if (dashboardMatch) {
+    try {
+      const session = await verifyDashboardRequest(request, companyId)
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set('x-whop-company-id', session.companyId)
+      requestHeaders.set('x-whop-user-id', session.userId)
+      requestHeaders.set('x-whop-access-level', session.accessLevel)
 
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
-  } catch (error) {
-    return NextResponse.json(
-      { error: { message: (error as Error).message ?? 'Unauthorized' } },
-      { status: 403 }
-    )
+      const response = NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      })
+      // Persist company context for subsequent API calls made by the browser
+      response.cookies.set('w_company', session.companyId, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: true,
+        maxAge: 60 * 30, // 30 minutes
+        path: '/',
+      })
+      response.cookies.set('w_access', session.accessLevel, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: true,
+        maxAge: 60 * 30,
+        path: '/',
+      })
+      return response
+    } catch (error) {
+      return NextResponse.json(
+        { error: { message: (error as Error).message ?? 'Unauthorized' } },
+        { status: 403 }
+      )
+    }
+  }
+
+  // For API save calls: allow if cookie matches path param (so client fetch works inside iframe)
+  if (saveMatch) {
+    const cookieCompany = request.cookies.get('w_company')?.value
+    if (cookieCompany && cookieCompany === companyId) {
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set('x-whop-company-id', companyId)
+      return NextResponse.next({ request: { headers: requestHeaders } })
+    }
+    // Fallback: try full verification (e.g., if Whop also forwards token on API calls)
+    try {
+      const session = await verifyDashboardRequest(request, companyId)
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set('x-whop-company-id', session.companyId)
+      return NextResponse.next({ request: { headers: requestHeaders } })
+    } catch (error) {
+      return NextResponse.json(
+        { error: { message: (error as Error).message ?? 'Unauthorized' } },
+        { status: 403 }
+      )
+    }
   }
 }
 
