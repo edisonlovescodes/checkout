@@ -17,8 +17,30 @@ export async function POST(
     return NextResponse.json({ error: { message: 'companyId is required' } }, { status: 400 })
   }
 
-  const forwardedCompanyId = request.headers.get('x-whop-company-id')
-  if (!forwardedCompanyId || forwardedCompanyId !== companyId) {
+  // Authorization: allow when one of the following holds
+  // 1) Middleware verified and set the header
+  // 2) Cookie set by middleware matches companyId (works inside the iframe)
+  // 3) Referer path includes /dashboard/[companyId] (last-resort fallback for some iframe contexts)
+  const headerCompany = request.headers.get('x-whop-company-id')
+  const cookieCompany = request.cookies.get('w_company')?.value
+  const referer = request.headers.get('referer')
+  const refererOk = (() => {
+    if (!referer) return false
+    try {
+      const u = new URL(referer)
+      return u.pathname.startsWith(`/dashboard/${companyId}`)
+    } catch {
+      return false
+    }
+  })()
+
+  if (
+    !(
+      (headerCompany && headerCompany === companyId) ||
+      (cookieCompany && cookieCompany === companyId) ||
+      refererOk
+    )
+  ) {
     return NextResponse.json({ error: { message: 'Forbidden' } }, { status: 403 })
   }
 
