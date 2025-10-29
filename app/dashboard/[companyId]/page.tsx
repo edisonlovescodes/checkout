@@ -1,5 +1,6 @@
 import prisma from '@/lib/db'
 import { DashboardForm } from '@/components/DashboardForm'
+import { headers } from 'next/headers'
 import type { PublicBump } from '@/types/config'
 
 export const dynamic = 'force-dynamic'
@@ -63,7 +64,14 @@ export default async function DashboardPage({ params }: { params: { companyId: s
           Whop permissions automatically—no extra logins required.
         </p>
       </header>
-      <DashboardForm companyId={params.companyId} initialConfig={initialConfig} />
+      <DashboardForm
+        companyId={params.companyId}
+        initialConfig={initialConfig}
+        publicBaseUrl={
+          process.env.NEXT_PUBLIC_PUBLIC_BASE_URL ||
+          `${headers().get('x-forwarded-proto') || 'https'}://${headers().get('x-forwarded-host')}`
+        }
+      />
     </main>
   )
 }

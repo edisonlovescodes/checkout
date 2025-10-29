@@ -23,6 +23,7 @@ type DashboardConfig = Omit<
 interface Props {
   companyId: string
   initialConfig: DashboardConfig
+  publicBaseUrl: string
 }
 
 type FieldErrors = Record<string, string>
@@ -120,7 +121,7 @@ function buildFormState(config: DashboardConfig): FormState {
   }
 }
 
-export function DashboardForm({ companyId, initialConfig }: Props) {
+export function DashboardForm({ companyId, initialConfig, publicBaseUrl }: Props) {
   const [formState, setFormState] = useState<FormState>(() => buildFormState(initialConfig))
   const [baselinePayload, setBaselinePayload] = useState(() =>
     JSON.stringify(serializePayload(buildFormState(initialConfig)))
@@ -243,7 +244,8 @@ export function DashboardForm({ companyId, initialConfig }: Props) {
     })
   }
 
-  const checkoutLink = `${HREF_ORIGIN}/checkout/${companyId}`.replace(/\/\//g, '://')
+  const base = (publicBaseUrl || HREF_ORIGIN || '').replace(/\/$/, '')
+  const checkoutLink = `${base}/checkout/${companyId}`
 
   const handleCopyLink = async () => {
     try {
