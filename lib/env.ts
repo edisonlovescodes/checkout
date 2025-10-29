@@ -15,7 +15,7 @@ export const env: Env = envSchema.parse({
   DATABASE_URL: process.env.DATABASE_URL,
   WHOP_API_KEY: process.env.WHOP_API_KEY,
   WHOP_APP_ID: process.env.WHOP_APP_ID,
-  LOG_LEVEL: process.env.LOG_LEVEL,
+  LOG_LEVEL: process.env.LOG_LEVEL?.trim(),
 })
 
 export default env
