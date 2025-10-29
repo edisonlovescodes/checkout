@@ -10,7 +10,9 @@ export async function middleware(request: NextRequest) {
   const dashboardMatch = pathname.match(DASHBOARD_REGEX)
   const saveMatch = pathname.match(SAVE_REGEX)
 
-  const companyId = dashboardMatch?.[1] ?? saveMatch?.[1]
+  let companyId = dashboardMatch?.[1] ?? saveMatch?.[1]
+  const headerCompanyId = request.headers.get('x-whop-company-id')
+  const looksLikeBiz = (id?: string | null) => !!id && /^biz_[A-Za-z0-9]/.test(id)
 
   if (!companyId) {
     return NextResponse.next()
@@ -18,6 +20,18 @@ export async function middleware(request: NextRequest) {
 
   // For dashboard page requests: verify via Whop token and set a short-lived cookie to reuse
   if (dashboardMatch) {
+    // If companyId param is malformed, try to recover from header or redirect to normalized URL
+    if (!looksLikeBiz(companyId) && looksLikeBiz(headerCompanyId)) {
+      companyId = headerCompanyId!
+      const url = request.nextUrl.clone()
+      url.pathname = `/dashboard/${companyId}`
+      return NextResponse.redirect(url)
+    }
+
+    // If still malformed, let the page render so we can show a friendly message; do not block
+    if (!looksLikeBiz(companyId)) {
+      return NextResponse.next()
+    }
     try {
       const session = await verifyDashboardRequest(request, companyId)
       const requestHeaders = new Headers(request.headers)

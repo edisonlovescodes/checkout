@@ -5,6 +5,15 @@ import type { PublicBump } from '@/types/config'
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage({ params }: { params: { companyId: string } }) {
+  const looksLikeBiz = (id?: string) => !!id && /^biz_[A-Za-z0-9]/.test(id)
+  const badParam = !looksLikeBiz(params.companyId)
+  const banner = badParam ? (
+    <div className="mx-auto mb-6 max-w-6xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      The company id in the URL isn’t valid. If you opened this from Whop, we’ll try to recover.
+      Make sure your app path in Whop is set to <code className="mx-1 rounded bg-amber-100 px-1">/dashboard/[companyId]</code>.
+    </div>
+  ) : null
+
 
   const config = await prisma.companyConfig.findUnique({
     where: { companyId: params.companyId },
@@ -45,6 +54,7 @@ export default async function DashboardPage({ params }: { params: { companyId: s
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12">
+      {banner}
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-500">Dashboard</p>
         <h1 className="text-3xl font-semibold text-slate-900">Embed Link Creator</h1>
