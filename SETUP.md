@@ -1,70 +1,71 @@
-# Setup Instructions
+# Setup Guide
 
-This checklist walks you from a fresh clone to a working Whop checkout experience in the dev proxy.
+Follow these steps to run the Whop Embed Link Creator locally.
 
-## 1. Install dependencies
+## 1. Clone & Install
 
 ```bash
+git clone https://github.com/edisonlovescodes/checkout.git
+cd checkout
 npm install
 ```
 
-## 2. Configure environment variables
+## 2. Create a Postgres database
 
-Create `.env.local` and copy the template from `.env.local.example`. Fill in:
+You can use Neon, Supabase, Railway, or any managed Postgres. Copy the connection URL and place it
+into `.env.local`.
 
-- `WHOP_API_KEY` – App API key from Whop Developer Dashboard  
-- `WHOP_APP_ID` – App ID (also shown in the dashboard)  
-- `WHOP_WEBHOOK_SECRET` – Found under the Webhooks tab of the app settings  
-- `WHOP_BASE_PLAN_ID` – Plan ID for the base offer (no bump)  
-- `WHOP_BUNDLE_PLAN_ID` – Plan ID that bundles the order bump  
-- `WHOP_BUNDLE_PRODUCT_ID` – Optional product ID for analytics/SDK calls  
-- `WHOP_CHECKOUT_THEME` / `WHOP_CHECKOUT_ACCENT` – Theme knobs for the iframe  
-- Optional dev helpers: `WHOP_DEV_BYPASS`, `WHOP_DEV_USER_ID`, `WHOP_DEV_ACCESS_LEVEL`
+## 3. Environment variables
 
-> ⚠️ Do **not** enable `WHOP_DEV_BYPASS` in production—it intentionally skips token verification for local work outside the Whop iframe.
+Duplicate the sample file:
 
-## 3. Run the dev server
+```bash
+cp .env.local.example .env.local
+```
+
+Fill in the following keys:
+
+| Variable        | Description                                            |
+| --------------- | ------------------------------------------------------ |
+| `DATABASE_URL`  | Postgres connection string                             |
+| `WHOP_API_KEY`  | API key from the Whop developer dashboard               |
+| `WHOP_APP_ID`   | Whop app ID (optional but recommended)                 |
+| `LOG_LEVEL`     | Optional logging level (`debug`, `info`, `warn`, `error`)|
+
+Local-only helpers such as `WHOP_BASE_PLAN_ID` or bump IDs are optional and mainly exist to help you
+seed the dashboard.
+
+## 4. Run Prisma migrations
+
+```bash
+npm run db:migrate -- --name init
+```
+
+This generates the Prisma client and applies the schema defined in `prisma/schema.prisma`. If you
+change models later, run the same command with a new migration name.
+
+## 5. Start the dev server
 
 ```bash
 npm run dev
 ```
 
-Open:
+- Dashboard: `http://localhost:3000/dashboard/<companyId>` (load via the Whop dev proxy so the
+  request carries the `x-whop-user-token` header).
+- Checkout: `http://localhost:3000/checkout/<companyId>` (public preview page).
 
-- `http://localhost:3000/` – landing instructions  
-- `http://localhost:3000/experiences/demo-experience` – experience view preview
+## 6. Configure Whop
 
-If you enabled the dev bypass you can test the wrapper UI here. Otherwise, continue to the dev proxy.
+1. Open the Whop developer dashboard and create an app.
+2. Enable the developer proxy and point it to `http://localhost:3000`.
+3. Install the app inside a test company.
+4. Visit the dashboard view from the Whop sidebar—the page should load with your Whop identity.
 
-## 4. Attach to the Whop dev proxy
+## 7. Seed data (optional)
 
-1. In the Whop developer dashboard, open your app → **Develop** tab.
-2. Enable the dev proxy and set the proxy URL to `http://localhost:3000`.
-3. Launch the app from a test community sidebar. Whop inserts the `x-whop-user-token` header and you’ll see access state + order bump demo.
-4. Toggle the bump to confirm the plan swap, and try the in-app purchase button (works only inside the iframe).
+If you want to pre-populate a config for testing, insert a row into the `CompanyConfig` table with
+your `companyId` and base plan ID. Otherwise, the dashboard allows you to configure everything on the
+fly once permissions are verified.
 
-## 5. Webhook testing
-
-The webhook handler lives at `/api/webhooks`.
-
-- Point a Whop webhook (app or company scope) to `https://your-domain.com/api/webhooks`.
-- Use the same `WHOP_WEBHOOK_SECRET` in both Whop and your environment.
-- Inspect logs to verify `payment.succeeded` or `membership.activated` events reach the server.
-
-For local testing you can forward the endpoint with `ngrok` or replay payloads using the Whop CLI.
-
-## 6. Production build check
-
-```bash
-npm run build
-```
-
-This validates TypeScript and produces an optimized Next.js build. Dynamic routes remain server-rendered (`λ` in the output).
-
-## 7. Next steps
-
-- Update `lib/config/order-bump.ts` with your real marketing copy and plan IDs.
-- Wire actual fulfillment logic inside `app/api/webhooks/route.ts`.
-- Review [`docs/whop-experience-notes.md`](./docs/whop-experience-notes.md) for implementation callouts.
-
-Need the full deploy story? Jump to [`DEPLOY.md`](./DEPLOY.md).
+You are now ready to iterate on the checkout experience, add order bumps, and test webhook
+forwarding.

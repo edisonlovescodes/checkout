@@ -8,8 +8,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Whop Checkout CRO Lab',
-  description: 'Experience view blueprint with verified access, CRO order bump, and Whop checkout embed.',
+  title: 'Whop Embed Link Creator',
+  description:
+    'Configure Whop plan-based checkout links with multi-bump offers, hosted pages, and webhook automations.',
 }
 
 export default function RootLayout({
@@ -18,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen bg-transparent`}>{children}</body>
     </html>
   )
 }
