@@ -1,235 +1,132 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import clsx from 'clsx'
-import type { PublicBump, PublicCompanyConfig } from '@/types/config'
-import { WhopEmbed, type WhopPrefillMap } from './WhopEmbed'
+import { useEffect, useMemo, useState } from 'react'
+import type { CheckoutConfig } from '@/lib/config-store'
+import { WhopEmbed } from './WhopEmbed'
+
+type PrefillMap = Partial<Record<'email' | 'name', string>>
 
 interface CheckoutWrapperProps {
   companyId: string
-  config: PublicCompanyConfig
-  prefill: WhopPrefillMap
-  paymentId?: string
-  webhookUrl?: string | null
-  initialSelectedBumpId?: string | null
+  config: CheckoutConfig
+  prefill: PrefillMap
+  paymentId?: string | null
 }
 
-const highlightStyles: Record<string, string> = {
-  rose: 'border-rose-200 bg-rose-50 text-rose-700',
-  amber: 'border-amber-200 bg-amber-50 text-amber-700',
-  emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  sky: 'border-sky-200 bg-sky-50 text-sky-700',
-  violet: 'border-violet-200 bg-violet-50 text-violet-700',
-  slate: 'border-slate-200 bg-slate-50 text-slate-700',
-}
-
-const accentStyles: Record<string, string> = {
-  sky: 'bg-sky-100 text-sky-600',
-  blue: 'bg-blue-100 text-blue-600',
-  green: 'bg-emerald-100 text-emerald-600',
-  purple: 'bg-violet-100 text-violet-600',
-  amber: 'bg-amber-100 text-amber-700',
-}
-
-function getActivePlanId(basePlanId: string, bumps: PublicBump[], selectedBumpId?: string) {
-  if (!selectedBumpId) return basePlanId
-  const bump = bumps.find((candidate) => candidate.id === selectedBumpId)
-  return bump?.planId ?? basePlanId
-}
-
-export function CheckoutWrapper({
-  companyId,
-  config,
-  prefill,
-  paymentId,
-  webhookUrl,
-  initialSelectedBumpId,
-}: CheckoutWrapperProps) {
-  const [selectedBumpId, setSelectedBumpId] = useState<string | undefined>(() => {
-    if (initialSelectedBumpId && config.bumps.some((b) => b.id === initialSelectedBumpId)) {
-      return initialSelectedBumpId
-    }
-    const def = config.bumps.find((bump) => bump.defaultSelected)
-    return def?.id
-  })
+export function CheckoutWrapper({ companyId, config, prefill, paymentId }: CheckoutWrapperProps) {
+  const [selectedPlan, setSelectedPlan] = useState(() => config.bundlePlanId || config.basePlanId)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (initialSelectedBumpId && config.bumps.some((b) => b.id === initialSelectedBumpId)) {
-      setSelectedBumpId(initialSelectedBumpId)
-    }
-  }, [initialSelectedBumpId, config.bumps])
-  const [statusMessage, setStatusMessage] = useState<string | null>(null)
-  const [forwardingState, setForwardingState] = useState<'idle' | 'sending' | 'done'>('idle')
-
-  const activePlanId = useMemo(
-    () => getActivePlanId(config.basePlanId, config.bumps, selectedBumpId),
-    [config.basePlanId, config.bumps, selectedBumpId]
-  )
+    setSelectedPlan((previous) => {
+      if (previous === config.bundlePlanId || previous === config.basePlanId) {
+        return previous
+      }
+      return config.bundlePlanId || config.basePlanId
+    })
+  }, [config.basePlanId, config.bundlePlanId])
 
   useEffect(() => {
     if (!paymentId) return
-    let cancelled = false
-    const id = paymentId
 
-    async function handlePostPurchase() {
-      if (webhookUrl && forwardingState === 'idle') {
-        setForwardingState('sending')
-        try {
-          const res = await fetch('/api/automation/webhook', {
+    const automationPayload = JSON.stringify({
+      payment_id: paymentId,
+      companyId,
+      planId: selectedPlan,
+      timestamp: Date.now(),
+    })
+
+    if (config.redirectUrl) {
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(config.redirectUrl, automationPayload)
+        } else {
+          void fetch(config.redirectUrl, {
             method: 'POST',
+            mode: 'no-cors',
+            body: automationPayload,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              payment_id: id,
-              companyId,
-              event: 'payment.succeeded',
-            }),
           })
-          if (!res.ok) {
-            throw new Error('Forward failed')
-          }
-        } catch (error) {
-          console.error('[whop-checkout] webhook forwarding failed', error)
-        } finally {
-          if (!cancelled) {
-            setForwardingState('done')
-          }
         }
+      } catch {
+        // best-effort automation
       }
 
-      if (config.redirectUrl) {
-        const redirect = new URL(config.redirectUrl)
-        redirect.searchParams.set('payment_id', id)
-        window.location.replace(redirect.toString())
-        return
-      }
-
-      if (!cancelled) {
-        setStatusMessage('Payment received! Check your email for access details.')
-      }
+      const target = new URL(config.redirectUrl, window.location.href)
+      target.searchParams.set('payment_id', paymentId)
+      window.location.replace(target.toString())
+      return
     }
 
-    handlePostPurchase()
+    setStatusMessage('Payment received! Check your email for instant access.')
+  }, [companyId, config.redirectUrl, paymentId, selectedPlan])
 
-    return () => {
-      cancelled = true
-    }
-  }, [companyId, config.redirectUrl, forwardingState, paymentId, webhookUrl])
-
-  const themeClasses =
-    config.theme === 'dark'
-      ? 'bg-slate-900 text-white'
-      : config.theme === 'system'
-      ? 'bg-gradient-to-b from-white to-slate-50 text-slate-900'
-      : 'bg-white text-slate-900'
-
-  const accentClass = accentStyles[config.accent] ?? 'bg-slate-200 text-slate-700'
+  const bumpEnabled = Boolean(config.bundlePlanId)
+  const activePlanId = useMemo(() => {
+    if (!bumpEnabled) return config.basePlanId
+    return selectedPlan || config.bundlePlanId || config.basePlanId
+  }, [bumpEnabled, config.basePlanId, config.bundlePlanId, selectedPlan])
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 md:flex-row md:gap-12 md:py-16">
-      <aside className={clsx('flex-1 rounded-3xl border border-slate-200 shadow-lg shadow-slate-900/10', themeClasses)}>
-        <div className="space-y-6 px-8 py-10">
-          <header className="space-y-2">
-            <span className={clsx(
-              'inline-flex rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em]',
-              accentClass
-            )}>
-              Hosted checkout
-            </span>
-            <h1 className="text-3xl font-semibold tracking-tight">{config.headline || 'Complete your purchase'}</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-300">
-              {config.subheadline ||
-                'Review the order bump options below to get the most value from your purchase.'}
-            </p>
-          </header>
+    <div className="mx-auto max-w-lg rounded-3xl bg-white p-8 shadow-2xl shadow-emerald-500/10 ring-1 ring-emerald-100">
+      <div className="text-center">
+        <h1 className="text-3xl font-semibold text-emerald-900">{config.bumpTitle || 'Get Instant Access'}</h1>
+        <p className="mt-2 text-sm text-emerald-600">
+          One hosted checkout. One click upsell. Built for Whop creators.
+        </p>
+      </div>
 
-          <div className="space-y-4">
-            <fieldset className="space-y-3" aria-label="Order bump">
-              <legend className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                Upgrade your order
-              </legend>
-              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-700 shadow-sm shadow-slate-900/10 transition hover:border-slate-300">
-                <input
-                  type="radio"
-                  name="order-bump"
-                  checked={!selectedBumpId}
-                  onChange={() => setSelectedBumpId(undefined)}
-                  className="h-4 w-4 accent-slate-900"
-                />
-                <div>
-                  <p className="font-semibold text-slate-900">Just the base plan</p>
-                  <p className="text-xs text-slate-500">Purchase the core offer without any add-ons.</p>
-                </div>
-              </label>
-              {config.bumps.map((bump) => {
-                const highlight = bump.highlightColor ? highlightStyles[bump.highlightColor] : 'border-slate-200 bg-white'
-                return (
-                  <label
-                    key={bump.id}
-                    className={clsx(
-                      'flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 text-sm shadow-sm shadow-slate-900/10 transition hover:border-slate-300',
-                      highlight
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="order-bump"
-                      checked={selectedBumpId === bump.id}
-                      onChange={() => setSelectedBumpId(bump.id)}
-                      className="mt-1 h-4 w-4 accent-slate-900"
-                    />
-                    <div className="flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-base font-semibold">{bump.title}</p>
-                        {bump.badge ? (
-                          <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
-                            {bump.badge}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="text-sm opacity-80">{bump.description}</p>
-                      <p className="text-sm font-semibold text-slate-900">{bump.priceLabel}</p>
-                    </div>
-                  </label>
-                )
-              })}
-            </fieldset>
+      <div className="mt-8 space-y-3">
+        <label className="flex cursor-pointer items-center rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 transition hover:border-emerald-300">
+          <input
+            type="radio"
+            name="checkout-plan"
+            checked={activePlanId === config.basePlanId}
+            onChange={() => setSelectedPlan(config.basePlanId)}
+            className="h-5 w-5 accent-emerald-500"
+          />
+          <div className="ml-3">
+            <p className="font-semibold text-emerald-900">Base offer</p>
+            <p className="text-xs text-emerald-600/80">Core plan only — no add-ons.</p>
           </div>
+        </label>
 
-          <footer className="space-y-3">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              Continue below to complete checkout securely with Whop.
-            </p>
-            {config.showBadges ? (
-              <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                <Badge>Secure payments</Badge>
-                <Badge>Instant access</Badge>
-                <Badge>30-day guarantee</Badge>
-              </div>
-            ) : null}
-            {statusMessage ? (
-              <p className="text-xs font-semibold text-emerald-600">{statusMessage}</p>
-            ) : null}
-          </footer>
-        </div>
-      </aside>
+        {bumpEnabled ? (
+          <label className="flex cursor-pointer items-center rounded-2xl border border-emerald-500 bg-emerald-50 p-4 transition hover:border-emerald-600">
+            <input
+              type="radio"
+              name="checkout-plan"
+              checked={activePlanId === config.bundlePlanId}
+              onChange={() => setSelectedPlan(config.bundlePlanId!)}
+              className="h-5 w-5 accent-emerald-600"
+            />
+            <div className="ml-3">
+              <p className="font-semibold text-emerald-700">
+                {config.bumpTitle || 'Yes! Add the one-click upsell'}
+              </p>
+              <p className="text-xs text-emerald-600">
+                Boost your order value instantly — toggle off anytime.
+              </p>
+            </div>
+          </label>
+        ) : null}
+      </div>
 
-      <section className="flex-1 rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-xl shadow-slate-900/10">
-        <WhopEmbed
-          planId={activePlanId}
-          theme={config.theme}
-          accent={config.accent}
-          allowPrefill={config.allowPrefill}
-          prefill={prefill}
-        />
-      </section>
+      <div className="mt-8">
+        <WhopEmbed planId={activePlanId} prefill={prefill} />
+      </div>
+
+      {statusMessage ? (
+        <p className="mt-4 text-center text-sm font-semibold text-emerald-600">{statusMessage}</p>
+      ) : null}
+
+      <style jsx>{`
+        button,
+        .whop-checkout-embed button {
+          background: #10b981 !important;
+          border-radius: 9999px !important;
+        }
+      `}</style>
     </div>
-  )
-}
-
-function Badge({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-100 bg-white/70 px-3 py-1 font-medium text-slate-600 shadow-sm shadow-slate-900/5">
-      {children}
-    </span>
   )
 }

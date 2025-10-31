@@ -8,9 +8,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Whop Embed Link Creator',
-  description:
-    'Configure Whop plan-based checkout links with multi-bump offers, hosted pages, and webhook automations.',
+  title: 'Checkout OS — 4-field Whop checkout',
+  description: 'Free hosted Whop checkout with bumps, prefill, and automation. No code. No setup.',
 }
 
 export default function RootLayout({

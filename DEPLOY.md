@@ -1,76 +1,16 @@
-# Deployment Guide (Vercel)
+# Deploying Checkout OS
 
-This app is built for Vercel + PostgreSQL. Follow the steps below to launch in production.
+There’s nothing to wire up — deploy like any standard Next.js app.
 
-## 1. Prepare your database
+1. Push the project to a Git repo (or keep using this one).
+2. On Vercel, choose “Import Project” → connect the repo → keep the default build settings.
+3. Deploy (`vercel --prod` or through the dashboard).
 
-- Create a production Postgres database (Neon, Supabase, Railway, etc.).
-- Copy the connection URL and keep it handy.
+No environment variables or databases are required for the demo. The in-memory config store resets on
+each cold start; swap the implementation in `lib/config-store.ts` for a persistent service (Vercel KV,
+Upstash Redis, etc.) when you want production durability.
 
-## 2. Create a Vercel project
+After deployment, update your Whop app’s base URL to the Vercel domain and you’re live:
 
-- Import the GitHub repository into Vercel.
-- When prompted, keep the default build command (`npm run build`). This already runs
-  `prisma generate` so migrations can deploy automatically.
-
-## 3. Configure environment variables
-
-In **Vercel → Project → Settings → Environment Variables**, add the following keys for **Production**,
-**Preview**, and **Development** environments:
-
-| Key                    | Description                                    |
-| ---------------------- | ---------------------------------------------- |
-| `DATABASE_URL`         | Postgres connection string                     |
-| `WHOP_API_KEY`         | Whop API key                                   |
-| `WHOP_APP_ID`          | Whop app ID                                    |
-| `LOG_LEVEL` (optional) | `debug`, `info`, `warn`, or `error`             |
-
-You can add additional defaults (e.g. starter plan IDs) if desired, but they are not required.
-
-## 4. Run migrations on deploy
-
-Add a Vercel build hook or use GitHub actions to run:
-
-```bash
-npm run db:deploy
-```
-
-For simple setups, you can create a Deploy Hook in Vercel that triggers `npm run db:deploy` before
-`npm run build`. Alternatively, run the command manually after the first deploy using Vercel CLI:
-
-```bash
-vercel env pull
-DATABASE_URL=... npm run db:deploy
-```
-
-## 5. Deploy
-
-Push to `main` (or any connected branch). Vercel will build and deploy automatically. The build
-output will include the hosted checkout URL, e.g.:
-
-```
-https://your-project.vercel.app
-```
-
-Use this domain inside the Whop app settings (`Base URL` / hosted checkout link).
-
-## 6. Post-deploy checklist
-
-- Visit `https://your-project.vercel.app/dashboard/<companyId>` through the Whop app to confirm the
-  dashboard loads with valid credentials.
-- Test `/checkout/<companyId>` without authentication to ensure the embed loads and bumps work.
-- Submit a test purchase in Whop’s sandbox, confirm webhook forwarding (if configured), and verify
-  redirect behaviour.
-
-## 7. Custom domains (optional)
-
-Add any custom domains under **Vercel → Settings → Domains** and update DNS records per the wizard.
-Remember to update the Whop app configuration to use the same domain.
-
-## 8. Environment rotation
-
-If you rotate credentials (e.g. `WHOP_API_KEY`), update Vercel environment variables and redeploy.
-No further action is required; the middleware reads the values at runtime.
-
-You’re done! Creators can now install the app, configure their hosted checkout, and share the link
-or embed snippet anywhere.
+- Dashboard: `https://your-vercel-app.vercel.app/dashboard/<companyId>`
+- Checkout: `https://your-vercel-app.vercel.app/checkout/<companyId>`
